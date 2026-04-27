@@ -21,8 +21,8 @@ app.add_middleware(
     )
 
 
-app.include_router(auth.router, prefix="/auth")
-app.include_router(project.router, prefix="/projects")
-app.include_router(task.router, prefix="/tasks")
-app.include_router(user.router, prefix="/users")
-app.include_router(column.router, prefix="/columns")
+app.include_router(auth.router, prefix="/api/auth")
+app.include_router(project.router, prefix="/api/projects")
+app.include_router(task.router, prefix="/api/tasks")
+app.include_router(user.router, prefix="/api/users")
+app.include_router(column.router, prefix="/api/columns")
