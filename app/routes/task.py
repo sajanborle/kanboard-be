@@ -1,11 +1,11 @@
-from http.client import HTTPException
-
+from fastapi import HTTPException
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.utils.email import send_email
 from app.utils.deps import get_current_user
+from app.utils.response import success_response, error_response
 
 router = APIRouter(tags=["Tasks"])
 
@@ -32,7 +32,10 @@ def create_task(task: schemas.TaskCreate, bg: BackgroundTasks,db: Session = Depe
                 f"Task '{new_task.title}' assigned to you"
             )
 
-        return new_task
+        return success_response(
+            data=new_task,
+            message="Task created successfully"
+        )
 
     except Exception as e:
         db.rollback()
@@ -51,7 +54,7 @@ def move_task(data: schemas.MoveTask, db: Session = Depends(get_db), current_use
 
     db.commit()
 
-    return {"message": "Moved"}
+    return success_response(message="Task moved successfully")
 
 @router.delete("/{task_id}")
 def delete_task(task_id: int,
@@ -74,7 +77,7 @@ def delete_task(task_id: int,
             f"Task '{task.title}' deleted"
         )
 
-        return {"message": "Deleted"}
+        return success_response(message="Task deleted successfully")
 
 @router.get("/")
 def get_tasks(project_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
@@ -83,7 +86,7 @@ def get_tasks(project_id: int, db: Session = Depends(get_db), current_user = Dep
         models.Task.project_id == project_id
     ).all()
 
-    return tasks
+    return success_response(data=tasks)
 
 @router.put("/{task_id}")
 def update_task(task_id: int,data: schemas.TaskUpdate, bg: BackgroundTasks, db: Session = Depends(get_db),current_user = Depends(get_current_user)):
@@ -128,4 +131,7 @@ def update_task(task_id: int,data: schemas.TaskUpdate, bg: BackgroundTasks, db: 
             f"Task '{task.title}' moved"
         )
 
-    return task
+    return success_response(
+        data=task,
+        message="Task updated successfully"
+    )

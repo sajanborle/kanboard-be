@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.utils.deps import get_current_user
+from app.utils.response import success_response
 
 router = APIRouter(tags=["Columns"])
 
@@ -23,23 +24,32 @@ def create_column(data: schemas.ColumnCreate,db: Session = Depends(get_db),curre
     db.commit()
     db.refresh(column)
 
-    return column
+    return success_response(data=column, message="Column created successfully")
 
 
 @router.get("/")
 def get_all_columns(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     columns = db.query(models.BoardColumn).all()
 
-    return [
+    result = [
         {
             "id": c.id,
             "name": c.name
         }
         for c in columns
     ]
-    
+    return success_response(data=result, message="Columns fetched successfully")
+
 @router.get("/{project_id}/columns")
 def get_project_columns(project_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    return db.query(models.BoardColumn).filter(
+    columns = db.query(models.BoardColumn).filter(
         models.BoardColumn.project_id == project_id
     ).all()
+    result = [
+        {
+            "id": c.id,
+            "name": c.name
+        }
+        for c in columns
+    ]
+    return success_response(data=result, message="Project columns fetched successfully")

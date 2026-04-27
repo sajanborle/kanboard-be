@@ -4,6 +4,7 @@ from app.database import get_db
 from app import models, schemas
 from app.utils.email import send_email
 from app.utils.deps import get_current_user
+from app.utils.response import success_response, error_response
 
 router = APIRouter(tags=["Projects"])
 
@@ -29,7 +30,10 @@ def create_project(
             f"Project '{project.name}' created successfully"
         )
 
-        return project
+        return success_response(
+            data=project,
+            message="Project created successfully"
+        )
 
     except Exception as e:
         db.rollback()  
@@ -64,7 +68,6 @@ def invite(
     if not user:
         raise HTTPException(404, "User not found")
 
-    # ✅ Project fetch
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
 
     if not project:
@@ -79,7 +82,6 @@ def invite(
     db.add(member)
     db.commit()
 
-    # ✅ Better email message
     bg.add_task(
         send_email,
         user.email,
@@ -102,22 +104,24 @@ def invite(
             """
     )
 
-    return {
-        "message": "Invited",
-        "project": project.name
-    }
-    
+    return success_response(
+            data={"project": project.name},
+            message="User invited successfully"
+        )
 
 @router.get("/{project_id}/tasks")
-def get_tasks(project_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-
+def get_tasks(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
     tasks = db.query(models.Task, models.BoardColumn.name).join(
         models.BoardColumn, models.Task.column_id == models.BoardColumn.id
     ).filter(
         models.Task.project_id == project_id
     ).all()
 
-    return [
+    result = [
         {
             "id": t.Task.id,
             "title": t.Task.title,
@@ -127,7 +131,13 @@ def get_tasks(project_id: int, db: Session = Depends(get_db), current_user = Dep
         }
         for t in tasks
     ]
-        
+
+    return success_response(
+        data=result,
+        message="Tasks fetched successfully"
+    )
+            
 @router.get("/")
 def get_projects(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    return db.query(models.Project).all()
+    projects = db.query(models.Project).all()
+    return success_response(data=projects)
