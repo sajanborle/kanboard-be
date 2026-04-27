@@ -7,3 +7,4 @@ passlib[bcrypt]
 python-jose
 email-validator
 bcrypt==4.0.1
+pg8000
