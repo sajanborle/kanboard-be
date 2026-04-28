@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
@@ -42,6 +44,8 @@ class TaskCreate(BaseModel):
     priority: PriorityEnum
     assignee_id: int
     project_id: int
+    category: Optional[str] = None
+    sub_category: Optional[str] = None
 
     estimate_time: Optional[int] = None
     completed_time: Optional[int] = None
@@ -59,10 +63,13 @@ class TaskUpdate(BaseModel):
     column_id: Optional[int] = None
     priority: Optional[PriorityEnum] = None
     assignee_id: Optional[int] = None
-
+    category: Optional[str] = None
+    sub_category: Optional[str] = None
+    class Config:
+        extra = "forbid"   
     estimate_time: Optional[int] = None
     completed_time: Optional[int] = None
-    due_date: Optional[str] = None
+    due_date: Optional[datetime] = None   
     
 class ColumnCreate(BaseModel):
     name: str

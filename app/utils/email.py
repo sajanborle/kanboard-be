@@ -17,7 +17,10 @@ async def send_email(to: str, subject: str, body: str):
     message["From"] = FROM_EMAIL
     message["To"] = to
     message["Subject"] = subject
-    message.set_content(body)
+
+    message.set_content("Your email client does not support HTML.")
+
+    message.add_alternative(body, subtype="html")
 
     await aiosmtplib.send(
         message,

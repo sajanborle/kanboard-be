@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_db
 from app import models, schemas
 from app.utils.deps import get_current_user
@@ -7,11 +8,19 @@ from app.utils.response import success_response
 
 router = APIRouter(tags=["Columns"])
 
-@router.post("/")
-def create_column(data: schemas.ColumnCreate,db: Session = Depends(get_db),current_user = Depends(get_current_user)):
 
-    # 🔒 Optional: check project exists
-    project = db.query(models.Project).filter(models.Project.id == data.project_id).first()
+@router.post("/")
+async def create_column(
+    data: schemas.ColumnCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # check project exists
+    result = await db.execute(
+        select(models.Project).where(models.Project.id == data.project_id)
+    )
+    project = result.scalar_one_or_none()
+
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -21,35 +30,82 @@ def create_column(data: schemas.ColumnCreate,db: Session = Depends(get_db),curre
     )
 
     db.add(column)
-    db.commit()
-    db.refresh(column)
+    await db.commit()
+    await db.refresh(column)
 
-    return success_response(data=column, message="Column created successfully")
+    return success_response(
+        data={
+            "id": column.id,
+            "name": column.name,
+            "project_id": column.project_id
+        },
+        message="Column created successfully"
+    )
 
 
 @router.get("/")
-def get_all_columns(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    columns = db.query(models.BoardColumn).all()
+async def get_all_columns(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(select(models.BoardColumn))
+    columns = result.scalars().all()
 
-    result = [
+    data = [
         {
             "id": c.id,
-            "name": c.name
+            "name": c.name,
+            "project_id": c.project_id
         }
         for c in columns
     ]
-    return success_response(data=result, message="Columns fetched successfully")
+
+    return success_response(
+        data=data,
+        message="Columns fetched successfully"
+    )
+
 
 @router.get("/{project_id}/columns")
-def get_project_columns(project_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    columns = db.query(models.BoardColumn).filter(
-        models.BoardColumn.project_id == project_id
-    ).all()
-    result = [
+async def get_project_columns(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(models.BoardColumn)
+        .where(models.BoardColumn.project_id == project_id)
+        .order_by(models.BoardColumn.id)
+    )
+    columns = result.scalars().all()
+
+    data = [
         {
             "id": c.id,
             "name": c.name
         }
         for c in columns
     ]
-    return success_response(data=result, message="Project columns fetched successfully")
+
+    return success_response(
+        data=data,
+        message="Project columns fetched successfully"
+    )
+    
+async def create_default_columns(db: AsyncSession, project_id: int):
+    default_cols = [
+        "Admin",
+        "Developer",
+        "Sales",
+        "Client",
+        "Devops",
+        "Tester",
+        "Review",
+        "Close"
+    ]
+
+    for col in default_cols:
+        db.add(models.BoardColumn(
+            name=col,
+            project_id=project_id
+        ))

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON
 from app.database import Base
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
@@ -46,12 +46,31 @@ class Task(Base):
     column_id = Column(Integer)
     position = Column(Integer)
     priority = Column(String)
+    category = Column(String, nullable=True)
+    sub_category = Column(String, nullable=True)
     assignee_id = Column(Integer)
     project_id = Column(Integer, ForeignKey("projects.id"))
     created_by = Column(Integer, ForeignKey('users.id'))
     estimate_time = Column(Integer)  
     completed_time = Column(Integer)  
     due_date = Column(DateTime)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(Integer, primary_key=True)
+
+    task_id = Column(Integer)
+    project_id = Column(Integer)
+    user_id = Column(Integer)
+
+    action = Column(String)
+
+    history = Column(JSON)  
 
     created_at = Column(DateTime, default=datetime.utcnow)
     
