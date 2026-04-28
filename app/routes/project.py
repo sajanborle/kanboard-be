@@ -160,7 +160,7 @@ async def get_tasks(
             "priority": t.Task.priority,
             "estimate_time": t.Task.estimate_time,
             "completed_time": t.Task.completed_time,
-            "due_date": t.Task.due_date
+            "due_date": t.Task.due_date.isoformat() if t.Task.due_date else None
         }
         for t in tasks
     ]

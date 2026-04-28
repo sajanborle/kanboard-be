@@ -240,7 +240,7 @@ async def delete_task(
         """
         snapshot = build_snapshot(
             task,
-            column.name if column else "N/A",
+            "Deleted",
             assignee.username if assignee else None,
             current_user.username
         )
@@ -410,7 +410,7 @@ async def update_task(
         
         snapshot = build_snapshot(
             task,
-            column.name if column else "N/A",
+            "Close",
             assignee.username if assignee else None,
             current_user.username
         )
