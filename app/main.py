@@ -10,9 +10,11 @@ app = FastAPI(swagger_ui_init_oauth=None)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS").split(","),
+    allow_origins=[origin.strip() for origin in os.getenv("ALLOWED_ORIGINS").split(",")],
     allow_credentials=os.getenv("ALLOWED_CREDENTIALS").lower() == "true",
-    )
+    allow_methods=["*"],   
+    allow_headers=["*"],   
+)
 
 
 app.include_router(auth.router, prefix="/api/auth")

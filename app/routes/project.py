@@ -1,74 +1,103 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_db
 from app import models, schemas
 from app.utils.email import send_email
 from app.utils.deps import get_current_user
-from app.utils.response import success_response, error_response
+from app.utils.response import success_response
 
 router = APIRouter(tags=["Projects"])
 
+
 @router.post("/")
-def create_project(
+async def create_project(
     data: schemas.ProjectCreate,
-    bg: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
     try:
         project = models.Project(**data.dict(), created_by=current_user.id)
+
         db.add(project)
-        db.flush()
+        await db.flush()
 
-        create_default_columns(db, project.id)
+        await create_default_columns(db, project.id)
 
-        db.commit()  
-        bg.add_task(
-            send_email,
+        await db.commit()
+        await db.refresh(project)
+
+        await send_email(
             current_user.email,
             "Project Created",
-            f"Project '{project.name}' created successfully"
+            f"""
+                Hello {current_user.username},
+
+                Your project has been created successfully
+
+                📌 Project: {project.name}
+                📝 Description: {project.description}
+
+                Created by: {current_user.email}
+
+                Thanks,
+                Kanban Team
+                """
         )
 
         return success_response(
-            data=project,
+            data={
+                "id": project.id,
+                "name": project.name,
+                "description": project.description
+            },
             message="Project created successfully"
         )
 
     except Exception as e:
-        db.rollback()  
+        await db.rollback()
         raise HTTPException(500, str(e))
 
-def create_default_columns(db, project_id):
+
+async def create_default_columns(db: AsyncSession, project_id: int):
     default_cols = [
-        "Backlog",
-        "In Progress",
+        "Admin",
+        "Developer",
+        "Sales",
+        "Client",
+        "Devops",
+        "Tester",
         "Review",
-        "Testing",
-        "Done"
+        "Close"
     ]
 
-    for index, col in enumerate(default_cols):
+    for col in default_cols:
         db.add(models.BoardColumn(
             name=col,
             project_id=project_id
         ))
 
-    db.commit()
+
 @router.post("/{project_id}/invite")
-def invite(
+async def invite(
     project_id: int,
     data: schemas.InviteUser,
     bg: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    user = db.query(models.User).filter(models.User.email == data.email).first()
+    result = await db.execute(
+        select(models.User).where(models.User.email == data.email)
+    )
+    user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(404, "User not found")
 
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    result = await db.execute(
+        select(models.Project).where(models.Project.id == project_id)
+    )
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(404, "Project not found")
@@ -80,7 +109,7 @@ def invite(
     )
 
     db.add(member)
-    db.commit()
+    await db.commit()
 
     bg.add_task(
         send_email,
@@ -93,11 +122,9 @@ def invite(
 
             📌 Project: {project.name}
             📝 Description: {project.description}
-            👤 Role: {data.role}
+            👤 Role: {member.role.value}
 
             Invited by: {current_user.email}
-
-            Please login to view the project.
 
             Thanks,
             Kanban Team
@@ -105,39 +132,63 @@ def invite(
     )
 
     return success_response(
-            data={"project": project.name},
-            message="User invited successfully"
-        )
+        data={"project": project.name},
+        message="User invited successfully"
+    )
+
 
 @router.get("/{project_id}/tasks")
-def get_tasks(
+async def get_tasks(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    tasks = db.query(models.Task, models.BoardColumn.name).join(
-        models.BoardColumn, models.Task.column_id == models.BoardColumn.id
-    ).filter(
-        models.Task.project_id == project_id
-    ).all()
+    result = await db.execute(
+        select(models.Task, models.BoardColumn.name)
+        .join(models.BoardColumn, models.Task.column_id == models.BoardColumn.id)
+        .where(models.Task.project_id == project_id)
+    )
 
-    result = [
+    tasks = result.all()
+
+    data = [
         {
             "id": t.Task.id,
             "title": t.Task.title,
             "column": t.name,
             "column_id": t.Task.column_id,
-            "priority": t.Task.priority
+            "priority": t.Task.priority,
+            "estimate_time": t.Task.estimate_time,
+            "completed_time": t.Task.completed_time,
+            "due_date": t.Task.due_date
         }
         for t in tasks
     ]
 
     return success_response(
-        data=result,
+        data=data,
         message="Tasks fetched successfully"
     )
-            
+
+
 @router.get("/")
-def get_projects(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    projects = db.query(models.Project).all()
-    return success_response(data=projects)
+async def get_projects(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(select(models.Project))
+    projects = result.scalars().all()
+
+    data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "description": p.description
+        }
+        for p in projects
+    ]
+
+    return success_response(
+        data=data,
+        message="Projects fetched successfully"
+    )

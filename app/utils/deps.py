@@ -1,16 +1,18 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_db
 from app import models
 from jose import jwt
+import os
 
 security = HTTPBearer()
-SECRET_KEY = "secret"
+SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     token = credentials.credentials
 
@@ -21,12 +23,16 @@ def get_current_user(
         if not email:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        user = db.query(models.User).filter(models.User.email == email).first()
+        result = await db.execute(
+            select(models.User).where(models.User.email == email)
+        )
+        user = result.scalar_one_or_none()
 
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
 
         return user
 
-    except:
+    except Exception as e:
+        print("ERROR:", e)  # DEBUG
         raise HTTPException(status_code=401, detail="Invalid token")
