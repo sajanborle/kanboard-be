@@ -11,3 +11,4 @@ pg8000
 asyncpg 
 alembic 
 pydantic-settings
+aiosmtplib

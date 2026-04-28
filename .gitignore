@@ -49,8 +49,3 @@ build/
 # ======================
 .pytest_cache/
 coverage/
-
-# ======================
-# MIGRATIONS (optional)
-# ======================
-alembic/versions/*.py
