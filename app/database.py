@@ -1,42 +1,21 @@
-import os
-import psycopg2
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-DB_NAME = os.getenv("DB_NAME")
-
-try:
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    print("Using psycopg2 🚀")
-
-except Exception as e:
-    print("psycopg2 failed ❌, switching to pg8000", e)
-
-    DATABASE_URL = f"postgresql+pg8000://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+from collections.abc import AsyncGenerator
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import declarative_base   
+from app.config import settings
 
 Base = declarative_base()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session

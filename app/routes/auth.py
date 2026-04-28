@@ -1,26 +1,24 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app import models, schemas
-from app.database import SessionLocal
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.hashing import hash_password, verify_password
 from app.utils.token import create_access_token
 from app.utils.response import success_response, error_response
-
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 router = APIRouter(tags=["Users"])
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 @router.post("/signup")
-def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
+async def signup(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
     try:
-        existing_user = db.query(models.User).filter(
-            (models.User.email == user.email)).first()
+        result = await db.execute(
+            select(models.User).where(models.User.email == user.email)
+        )
+        existing_user = result.scalar_one_or_none()
 
         if existing_user:
             return error_response("User already exists", status_code=400)
@@ -33,8 +31,8 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
         )
 
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        await db.commit()
+        await db.refresh(new_user)
 
         return success_response(
             data={
@@ -47,15 +45,16 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
         )
 
     except Exception as e:
-        db.rollback()  
+        await db.rollback()
         return error_response(str(e), status_code=500)
-        
+            
 @router.post("/login")
-def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-    
-    db_user = db.query(models.User).filter(
-        models.User.email == user.email
-    ).first()
+async def login(user: schemas.UserLogin, db: AsyncSession = Depends(get_db)):
+
+    result = await db.execute(
+        select(models.User).where(models.User.email == user.email)
+    )
+    db_user = result.scalar_one_or_none()
 
     if not db_user or not verify_password(user.password, db_user.password):
         return error_response("Invalid credentials", status_code=401)

@@ -1,12 +1,27 @@
 from pydantic import BaseModel
 from typing import Optional
+from enum import Enum
 
+class RoleEnum(str, Enum):
+    Admin = "Admin"
+    Developer = "Developer"
+    Sales = "Sales"
+    Client = "Client"
+    Devops = "Devops"
+    Tester = "Tester"
+
+
+class PriorityEnum(str, Enum):
+    Low = "Low"
+    Medium = "Medium"
+    High = "High"
+    Critical = "Critical"
 
 class UserCreate(BaseModel):
     email: str
     username: str
     password: str
-    role: Optional[str] = "Developer"   
+    role: Optional[RoleEnum] = RoleEnum.Developer
 
 class UserLogin(BaseModel):
     email: str
@@ -18,16 +33,19 @@ class ProjectCreate(BaseModel):
 
 class InviteUser(BaseModel):
     email: str
-    role: str
+    role: RoleEnum
 
 class TaskCreate(BaseModel):
     title: str
     description: str
     column_id: int
-    priority: str
+    priority: PriorityEnum
     assignee_id: int
-    project_id: int   
-    created_by: Optional[int] = None
+    project_id: int
+
+    estimate_time: Optional[int] = None
+    completed_time: Optional[int] = None
+    due_date: Optional[str] = None
 
 class MoveTask(BaseModel):
     task_id: int
@@ -39,10 +57,12 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     column_id: Optional[int] = None
-    priority: Optional[str] = None
+    priority: Optional[PriorityEnum] = None
     assignee_id: Optional[int] = None
+
+    estimate_time: Optional[int] = None
+    completed_time: Optional[int] = None
     due_date: Optional[str] = None
-    time_estimate: Optional[int] = None
     
 class ColumnCreate(BaseModel):
     name: str

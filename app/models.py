@@ -1,12 +1,19 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from app.database import Base
+from sqlalchemy import DateTime
+from sqlalchemy import Enum
+from datetime import datetime
+from app.schemas import RoleEnum, PriorityEnum
+
+role = Column(Enum(RoleEnum), default="Developer")
+priority = Column(Enum(PriorityEnum))
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    username = Column(String, unique=True, index=True)
+    username = Column(String, index=True)   
     password = Column(String)
     role = Column(String, default="Developer")   
     
@@ -42,4 +49,9 @@ class Task(Base):
     assignee_id = Column(Integer)
     project_id = Column(Integer, ForeignKey("projects.id"))
     created_by = Column(Integer, ForeignKey('users.id'))
+    estimate_time = Column(Integer)  
+    completed_time = Column(Integer)  
+    due_date = Column(DateTime)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
     
