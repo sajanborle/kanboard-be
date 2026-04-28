@@ -29,20 +29,35 @@ async def create_project(
 
         await send_email(
             current_user.email,
-            "Project Created",
+            "🚀 Project Created",
             f"""
-                Hello {current_user.username},
+            <html>
+            <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
+            <div style="max-width:600px; margin:auto; background:white; padding:20px; border-radius:10px;">
 
-                Your project has been created successfully
+                <h2 style="color:#4CAF50;">🚀 Project Created Successfully</h2>
 
-                📌 Project: {project.name}
-                📝 Description: {project.description}
+                <p>Hello <b>{current_user.username}</b>,</p>
 
-                Created by: {current_user.email}
+                <p>Your project has been created successfully 🎉</p>
 
-                Thanks,
-                Kanban Team
-                """
+                <hr>
+
+                <p><b>📌 Project Name:</b> {project.name}</p>
+                <p><b>📝 Description:</b> {project.description}</p>
+
+                <hr>
+
+                <p><b>👤 Created By:</b> {current_user.email}</p>
+
+                <br>
+
+                <p style="color:gray;">Thanks,<br>Kanban Team</p>
+
+            </div>
+            </body>
+            </html>
+            """
         )
 
         return success_response(
@@ -114,21 +129,48 @@ async def invite(
     bg.add_task(
         send_email,
         user.email,
-        "Project Invitation",
+        "📩 Project Invitation",
         f"""
-            Hello {user.username},
+        <html>
+        <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
+        <div style="max-width:600px; margin:auto; background:white; padding:20px; border-radius:10px;">
 
-            You have been invited to the project:
+            <h2 style="color:#2196F3;">📩 You're Invited!</h2>
 
-            📌 Project: {project.name}
-            📝 Description: {project.description}
-            👤 Role: {member.role.value}
+            <p>Hello <b>{user.username}</b>,</p>
 
-            Invited by: {current_user.email}
+            <p>You have been invited to a project 🚀</p>
 
-            Thanks,
-            Kanban Team
-            """
+            <hr>
+
+            <p><b>📌 Project:</b> {project.name}</p>
+            <p><b>📝 Description:</b> {project.description}</p>
+
+            <p>
+                <b>👤 Role:</b>
+                <span style="color:#ff5722; font-weight:bold;">
+                    {member.role.value}
+                </span>
+            </p>
+
+            <hr>
+
+            <p><b>📨 Invited By:</b> {current_user.email}</p>
+
+            <br>
+
+            <p style="color:gray;">
+                Please login to view your project.
+            </p>
+
+            <br>
+
+            <p style="color:gray;">Thanks,<br>Kanban Team</p>
+
+        </div>
+        </body>
+        </html>
+        """
     )
 
     return success_response(
