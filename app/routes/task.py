@@ -9,6 +9,7 @@ from app.utils.email import send_email
 from app.utils.deps import get_current_user
 from sqlalchemy.orm.attributes import flag_modified
 from app.utils.response import success_response
+from app.utils.timezone import get_ist_time
 
 router = APIRouter(tags=["Tasks"])
 
@@ -19,11 +20,10 @@ ACTION_CONFIG = {
     "moved": {"icon": "📦", "text": "moved task"},
     "deleted": {"icon": "❌", "text": "deleted task"},
 }
-def build_snapshot(task, column_name, assignee_name, current_username):
+def build_snapshot(task, column_name, current_username):
     return {
-        "status": column_name,   # ✅ direct name use
+        "status": column_name,   
         "assignee": current_username,
-        "assign_to": assignee_name,
         "estimate_time": f"{task.estimate_time} hours" if task.estimate_time else None,
         "completed_time": f"{task.completed_time} hours" if task.completed_time else None
     }
@@ -59,7 +59,7 @@ async def create_task(
         else:
             hours = 48
 
-        task_dict["due_date"] = datetime.utcnow() + timedelta(hours=hours)
+        task_dict["due_date"] = get_ist_time() + timedelta(hours=hours)
 
         task_dict["created_by"] = current_user.id
 
@@ -75,7 +75,6 @@ async def create_task(
         snapshot = build_snapshot(
             new_task,
             column.name,
-            assignee.username if assignee else None,
             current_user.username
         )
 
@@ -156,6 +155,16 @@ async def move_task(
         select(models.Task).where(models.Task.id == data.task_id)
     )
     task = result.scalar_one_or_none()
+    
+    result_column = await db.execute(
+            select(models.BoardColumn).where(models.BoardColumn.id == task.column_id)
+        )
+    column = result_column.scalar_one_or_none()
+    
+    result_assignee = await db.execute(
+            select(models.User).where(models.User.id == task.assignee_id)
+        )
+    assignee = result_assignee.scalar_one_or_none()
 
     if not task:
         raise HTTPException(404, "Task not found")
@@ -165,9 +174,64 @@ async def move_task(
 
     task.column_id = data.new_column_id
     task.position = data.new_position
+    
+    data = {
+        "id": task.id,
+        "title": task.title,
+        "priority": task.priority,
+        "column_name": column.name if column else "N/A",
+        "assignee_id": task.assignee_id,
+        "assignee_username": assignee.username if assignee else "N/A",
+        "due_date": task.due_date.strftime("%d %b %Y %I:%M %p") if task.due_date else "N/A",
+        "created_at": task.created_at.strftime("%d %b %Y %I:%M %p")
+    }
+    
+    email_body = f"""
+        <html>
+        <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
+        <div style="background:white; padding:20px; border-radius:10px;">
+
+        <h2 style="color:red;">❌ Task Deleted</h2>
+
+        <p><b>📌 Title:</b> {task.title}</p>
+        <p><b>📝 Description:</b> {task.description}</p>
+
+        <hr>
+
+        <p><b>📂 Category:</b> {task.category or 'N/A'}</p>
+        <p><b>📁 Sub Category:</b> {task.sub_category or 'N/A'}</p>
+
+        <p>
+        <b>⚡ Priority:</b>
+        {task.priority}
+        </span>
+        </p>
+
+        <p><b>📊 Column:</b> {column.name if column else 'N/A'}</p>
+
+        <p><b>⏳ Estimate Time:</b> {task.estimate_time or 0} hrs</p>
+
+        <p><b>📅 Due Date:</b> {data.get("due_date")}</p>
+            <p><b>🕒 Created At:</b> {data.get("created_at")}</p>
+
+        <hr>
+
+        <p><b>👤 Moved Task By:</b> {current_user.email}</p>
+
+        </div>
+        </body>
+        </html>
+        """
+    snapshot = build_snapshot(
+        task,
+        column.name,
+        current_user.username
+    )
+
+    await create_or_update_activity(db, task, current_user, snapshot)
 
     await db.commit()
-    return success_response(message="Task moved successfully")
+    return success_response(data=data, message="Task moved successfully")
 
 
 @router.delete("/{task_id}")
@@ -241,7 +305,6 @@ async def delete_task(
         snapshot = build_snapshot(
             task,
             "Deleted",
-            assignee.username if assignee else None,
             current_user.username
         )
 
@@ -264,8 +327,14 @@ async def delete_task(
             f"Task Deleted: {task.title}",
             email_body
         )
+        data = {
+            "id": task.id,
+            "title": task.title,
+            "priority": task.priority,
+            "column_name": column.name if column else "N/A",
+        }
 
-        return success_response(message="Task deleted successfully")
+        return success_response(data=data, message="Task deleted successfully")
 
     except Exception as e:
         await db.rollback()
@@ -411,7 +480,6 @@ async def update_task(
         snapshot = build_snapshot(
             task,
             "Close",
-            assignee.username if assignee else None,
             current_user.username
         )
 

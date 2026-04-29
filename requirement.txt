@@ -12,3 +12,4 @@ asyncpg
 alembic 
 pydantic-settings
 aiosmtplib
+pytz

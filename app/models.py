@@ -4,6 +4,10 @@ from sqlalchemy import DateTime
 from sqlalchemy import Enum
 from datetime import datetime
 from app.schemas import RoleEnum, PriorityEnum
+from datetime import datetime
+import pytz
+
+IST = pytz.timezone("Asia/Kolkata")
 
 role = Column(Enum(RoleEnum), default="Developer")
 priority = Column(Enum(PriorityEnum))
@@ -55,7 +59,7 @@ class Task(Base):
     completed_time = Column(Integer)  
     due_date = Column(DateTime)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(IST))
     
 
 
@@ -72,5 +76,5 @@ class ActivityLog(Base):
 
     history = Column(JSON)  
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(IST))
     
